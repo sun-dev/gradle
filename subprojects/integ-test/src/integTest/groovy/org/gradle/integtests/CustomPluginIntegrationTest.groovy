@@ -138,10 +138,6 @@ class CustomPlugin implements Plugin<Project> {
         project.ext.custom = 'value'
     }
 }
-        """
-
-        file("src/main/resources/META-INF/gradle-plugins/custom.properties") << """
-implementation-class=CustomPlugin
 """
 
         file('src/test/groovy/CustomPluginTest.groovy') << """
@@ -151,37 +147,30 @@ class CustomPluginTest {
     @Test
     public void test() {
         def project = ProjectBuilder.builder().build()
-
         project.apply plugin: 'custom'
-
         assert project.custom == 'value'
     }
 }
 """
 
         buildFile << """
-apply plugin: 'groovy'
+plugins {
+    id 'java-gradle-plugin'
+    id 'groovy'
+}
 ${mavenCentralRepository()}
 dependencies {
     implementation gradleApi()
     implementation localGroovy()
     testImplementation 'junit:junit:4.13'
 }
-// Needed when using ProjectBuilder
-class AddOpensArgProvider implements CommandLineArgumentProvider {
-    private final Test test;
-    public AddOpensArgProvider(Test test) {
-        this.test = test;
+gradlePlugin {
+    plugins {
+        plugin {
+            id = "custom"
+            implementationClass = "CustomPlugin"
+        }
     }
-    @Override
-    Iterable<String> asArguments() {
-        return test.javaVersion.isCompatibleWith(JavaVersion.VERSION_1_9)
-            ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
-            : []
-    }
-}
-tasks.withType(Test).configureEach {
-    jvmArgumentProviders.add(new AddOpensArgProvider(it))
 }
 """
 
@@ -209,37 +198,30 @@ class CustomPluginTest {
     @Test
     public void test() {
         def project = ProjectBuilder.builder().build()
-
-        project.apply plugin: 'java'
-
+        project.apply plugin: 'custom'
         assert project.sourceSets
     }
 }
 """
 
         buildFile << """
-apply plugin: 'groovy'
+plugins {
+    id 'java-gradle-plugin'
+    id 'groovy'
+}
 ${mavenCentralRepository()}
 dependencies {
     implementation gradleApi()
     implementation localGroovy()
     testImplementation 'junit:junit:4.13'
 }
-// Needed when using ProjectBuilder
-class AddOpensArgProvider implements CommandLineArgumentProvider {
-    private final Test test;
-    public AddOpensArgProvider(Test test) {
-        this.test = test;
+gradlePlugin {
+    plugins {
+        plugin {
+            id = "custom"
+            implementationClass = "CustomPlugin"
+        }
     }
-    @Override
-    Iterable<String> asArguments() {
-        return test.javaVersion.isCompatibleWith(JavaVersion.VERSION_1_9)
-            ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
-            : []
-    }
-}
-tasks.withType(Test).configureEach {
-    jvmArgumentProviders.add(new AddOpensArgProvider(it))
 }
 """
 
