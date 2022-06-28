@@ -14,4 +14,6 @@ dependencies {
     implementation(project(":process-services"))
 
     testImplementation(testFixtures(project(":core")))
+
+    testImplementation(project(":internal-integ-testing"))
 }
