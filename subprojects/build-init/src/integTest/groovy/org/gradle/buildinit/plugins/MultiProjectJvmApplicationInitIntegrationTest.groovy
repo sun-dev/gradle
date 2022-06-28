@@ -22,6 +22,7 @@ import org.gradle.integtests.fixtures.DefaultTestExecutionResult
 import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
 import org.gradle.util.TestPrecondition
 import spock.lang.Requires
+import spock.lang.Ignore
 import spock.lang.Unroll
 
 import static org.gradle.buildinit.plugins.internal.modifiers.Language.GROOVY
@@ -177,6 +178,7 @@ class KotlinDslMultiProjectJavaApplicationInitIntegrationTest extends AbstractMu
     }
 }
 
+@Requires({ !(GradleContextualExecuter.embedded && TestPrecondition.JDK18_OR_LATER.fulfilled) })
 class KotlinDslMultiProjectGroovyApplicationInitIntegrationTest extends AbstractMultiProjectJvmApplicationInitIntegrationTest {
     @Override
     BuildInitDsl getBuildDsl() {
@@ -189,6 +191,7 @@ class KotlinDslMultiProjectGroovyApplicationInitIntegrationTest extends Abstract
     }
 }
 
+@Requires({ !(GradleContextualExecuter.embedded && TestPrecondition.JDK18_OR_LATER.fulfilled) })
 class KotlinDslMultiProjectKotlinApplicationInitIntegrationTest extends AbstractMultiProjectJvmApplicationInitIntegrationTest {
     @Override
     BuildInitDsl getBuildDsl() {
@@ -201,6 +204,7 @@ class KotlinDslMultiProjectKotlinApplicationInitIntegrationTest extends Abstract
     }
 }
 
+@Requires({ !(GradleContextualExecuter.embedded && TestPrecondition.JDK18_OR_LATER.fulfilled) })
 class KotlinDslMultiProjectScalaApplicationInitIntegrationTest extends AbstractMultiProjectJvmApplicationInitIntegrationTest {
     @Override
     BuildInitDsl getBuildDsl() {
