@@ -299,6 +299,36 @@ class JavaGradlePluginPluginIntegrationTest extends WellBehavedPluginTest {
         succeeds("assemble")
     }
 
+    @Issue("https://github.com/gradle/gradle/issues/18647")
+    def "can test plugin with ProjectBuilder without warnings or errors"() {
+        given:
+        applyPlugin()
+        goodPluginDescriptor()
+        buildFile << """
+            ${mavenCentralRepository()}
+            testing.suites.test.useJUnit()
+        """
+        goodPlugin()
+        file("src/test/java/com/xxx/TestPluginTest.java") << """
+            import org.junit.Test;
+            import org.gradle.api.Project;
+            import org.gradle.testfixtures.ProjectBuilder;
+            public class TestPluginTest {
+                @Test
+                public void test() {
+                    Project project = ProjectBuilder.builder().build();
+                    project.getPlugins().apply("test-plugin");
+                }
+            }
+        """
+
+        expect:
+        succeeds "test"
+
+        // Ensure there are no illegal access warnings.
+        errorOutput.contentEquals("FOR SOME REASON THE ERROR OUTPUT DOES NOT CONTAIN THE ILLEGAL ACCESS WARNING WHEN --add-opens FLAG IS REMOVED")
+    }
+
     def buildFile() {
         buildFile << """
 apply plugin: 'java-gradle-plugin'

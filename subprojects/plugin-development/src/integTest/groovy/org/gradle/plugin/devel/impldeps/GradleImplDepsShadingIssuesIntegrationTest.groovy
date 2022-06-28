@@ -98,7 +98,7 @@ class GradleImplDepsShadingIssuesIntegrationTest extends BaseGradleImplDepsInteg
     @Issue("GRADLE-3525")
     def "can use newer Servlet API"() {
         when:
-        buildFile << testableProject()
+        buildFile << testablePluginProject()
 
 
         buildFile << """
@@ -128,7 +128,7 @@ class GradleImplDepsShadingIssuesIntegrationTest extends BaseGradleImplDepsInteg
     @Issue("https://github.com/gradle/gradle/issues/3780")
     def "can use different JGit API"() {
         when:
-        buildFile << testableProject()
+        buildFile << testablePluginProject()
 
         buildFile << """
             dependencies {
