@@ -321,7 +321,7 @@ class DetermineExecutionPlanAction {
     }
 
     private void createOrdinalRelationships(Node node) {
-        if (!(node instanceof TaskNode)) {
+        if (!(node instanceof LocalTaskNode)) {
             return;
         }
 
@@ -330,7 +330,7 @@ class DetermineExecutionPlanAction {
             return;
         }
 
-        TaskNode taskNode = (TaskNode) node;
+        LocalTaskNode taskNode = (LocalTaskNode) node;
         TaskClassifier taskClassifier = classifyTask(taskNode);
 
         if (taskClassifier.isDestroyer()) {

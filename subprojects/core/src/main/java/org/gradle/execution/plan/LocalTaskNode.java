@@ -35,6 +35,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * A {@link TaskNode} implementation for a task in the current build.
@@ -203,6 +204,10 @@ public class LocalTaskNode extends TaskNode {
     }
 
     @Override
+    public void visitPreExecutionNodes(Consumer<? super Node> visitor) {
+        visitor.accept(resolveMutationsNode);
+    }
+
     public Node getPrepareNode() {
         return resolveMutationsNode;
     }

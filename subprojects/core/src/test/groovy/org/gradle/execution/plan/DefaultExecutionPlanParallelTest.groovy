@@ -16,6 +16,7 @@
 
 package org.gradle.execution.plan
 
+
 import org.gradle.api.DefaultTask
 import org.gradle.api.Task
 import org.gradle.api.file.FileCollection
@@ -42,6 +43,8 @@ import org.gradle.util.internal.ToBeImplemented
 import spock.lang.Issue
 
 import javax.annotation.Nullable
+import javax.swing.ListModel
+import java.util.function.Consumer
 
 import static org.gradle.internal.snapshot.CaseSensitivity.CASE_SENSITIVE
 
@@ -62,7 +65,8 @@ class DefaultExecutionPlanParallelTest extends AbstractExecutionPlanSpec {
         return new TestPriorityNode(options.failure)
     }
 
-    TaskInternal task(Map<String, ?> options = [:], String name) {
+    TaskInternal task(
+        Map<String, ?> options = [:], String name) {
         def task = createTask(name, options.project ?: this.project, options.type ?: TaskInternal)
         _ * task.taskDependencies >> taskDependencyResolvingTo(task, options.dependsOn ?: [])
         _ * task.lifecycleDependencies >> taskDependencyResolvingTo(task, options.dependsOn ?: [])
@@ -76,6 +80,24 @@ class DefaultExecutionPlanParallelTest extends AbstractExecutionPlanSpec {
             failure(task, options.failure)
         }
         return task
+    }
+
+    Node node(Map<String, ?> options = [:], String name) {
+        def dependencies = nodes(options.dependsOn)
+        def preExecute = nodes(options.preNodes)
+        def postExecute = nodes(options.postNodes)
+        def node = new TestNode(name, dependencies, preExecute, postExecute)
+        return node
+    }
+
+    List<Node> nodes(Object value) {
+        if (value == null) {
+            return []
+        } else if (value instanceof Node) {
+            return [value]
+        } else {
+            return value
+        }
     }
 
     def "runs finalizer and its dependencies after finalized task"() {
@@ -1560,6 +1582,44 @@ class DefaultExecutionPlanParallelTest extends AbstractExecutionPlanSpec {
         assertAllWorkComplete()
     }
 
+    def "node can provide additional dependencies immediately before execution"() {
+        def dep = node("dep")
+        def preNode1 = node("pre1")
+        def preNode2 = node("pre2")
+        def target = node("target", dependsOn: dep, preNodes: [preNode1, preNode2])
+        def entry = node("entry", dependsOn: target)
+
+        when:
+        addToGraph(dep, target, entry)
+        populateGraph()
+
+        then:
+        scheduledNodes == [dep, target, entry]
+        assertNodeReady(dep)
+        assertNodesReady(preNode1, preNode2)
+        assertNodeReady(target)
+        assertNodeReadyAndNoMoreToStart(entry)
+        assertAllWorkComplete()
+    }
+
+    def "node can provide additional dependencies immediately after execution"() {
+        def postNode1 = node("post1")
+        def postNode2 = node("post2")
+        def target = node("target", postNodes: [postNode1, postNode2])
+        def entry = node("entry", dependsOn: target)
+
+        when:
+        addToGraph(target, entry)
+        populateGraph()
+
+        then:
+        scheduledNodes == [target, entry]
+        assertNodeReady(target)
+        assertNodesReady(postNode1, postNode2)
+        assertNodeReadyAndNoMoreToStart(entry)
+        assertAllWorkComplete()
+    }
+
     private void tasksAreNotExecutedInParallel(Task first, Task second) {
         addToGraphAndPopulate(first, second)
 
@@ -1674,6 +1734,17 @@ class DefaultExecutionPlanParallelTest extends AbstractExecutionPlanSpec {
         finishedExecuting(node)
     }
 
+    void assertNodeReady(Node expected, boolean needToSelect = true) {
+        def node = selectNextNode()
+        assert node == expected
+        if (needToSelect) {
+            assertNoWorkReadyToStartAfterSelect()
+        } else {
+            assertNoWorkReadyToStart()
+        }
+        finishedExecuting(node)
+    }
+
     void assertLastTaskOfGroupReady(Task task, boolean needToSelect = true) {
         def node = selectNextTaskNode()
         assert node.task == task
@@ -1696,6 +1767,13 @@ class DefaultExecutionPlanParallelTest extends AbstractExecutionPlanSpec {
         finishedExecuting(node)
     }
 
+    void assertNodeReadyAndNoMoreToStart(Node expected, boolean needToSelect = false) {
+        def node = selectNextNode()
+        assert node == expected
+        assertNoMoreWorkToStartButNotAllComplete(needToSelect)
+        finishedExecuting(node)
+    }
+
     void assertLastTaskOfGroupReadyAndNoMoreToStart(Task task, boolean needToSelect = false) {
         def node = selectNextTaskNode()
         assert node.task == task
@@ -1712,6 +1790,20 @@ class DefaultExecutionPlanParallelTest extends AbstractExecutionPlanSpec {
         assert node1.task == task1
         def node2 = selectNextTaskNode()
         assert node2.task == task2
+        if (needToSelect) {
+            assertNoWorkReadyToStartAfterSelect()
+        } else {
+            assertNoWorkReadyToStart()
+        }
+        finishedExecuting(node2)
+        finishedExecuting(node1)
+    }
+
+    void assertNodesReady(Node expected1, Node expected2, boolean needToSelect = true) {
+        def node1 = selectNextNode()
+        assert node1 == expected1
+        def node2 = selectNextNode()
+        assert node2 == expected2
         if (needToSelect) {
             assertNoWorkReadyToStartAfterSelect()
         } else {
@@ -1917,11 +2009,26 @@ class DefaultExecutionPlanParallelTest extends AbstractExecutionPlanSpec {
         }
     }
 
-    private static class TestPriorityNode extends Node implements SelfExecutingNode {
-        final Throwable failure
+    List<Node> getScheduledNodes() {
+        def result = []
+        executionPlan.scheduledNodes.visitNodes(nodes -> result.addAll(nodes))
+        return result
+    }
 
-        TestPriorityNode(@Nullable Throwable failure) {
+    private static class TestNode extends Node implements SelfExecutingNode {
+        final Throwable failure
+        final String name
+        final List<Node> preExecuteNodes
+        final List<Node> postExecuteNodes
+
+        TestNode(String name, List<Node> dependencies, List<Node> preExecuteNodes, List<Node> postExecuteNodes, @Nullable Throwable failure = null) {
+            this.postExecuteNodes = postExecuteNodes
+            this.preExecuteNodes = preExecuteNodes
+            this.name = name
             this.failure = failure
+            for (final def dependency in dependencies) {
+                addDependencySuccessor(dependency)
+            }
         }
 
         @Override
@@ -1930,8 +2037,17 @@ class DefaultExecutionPlanParallelTest extends AbstractExecutionPlanSpec {
         }
 
         @Override
-        boolean isPriority() {
-            return true
+        void visitPreExecutionNodes(Consumer<? super Node> visitor) {
+            for (final node in preExecuteNodes) {
+                visitor.accept(node)
+            }
+        }
+
+        @Override
+        void visitPostExecutionNodes(Consumer<? super Node> visitor) {
+            for (final node in postExecuteNodes) {
+                visitor.accept(node)
+            }
         }
 
         @Override
@@ -1940,11 +2056,22 @@ class DefaultExecutionPlanParallelTest extends AbstractExecutionPlanSpec {
 
         @Override
         String toString() {
-            return "test node"
+            return name
         }
 
         @Override
         void execute(NodeExecutionContext context) {
+        }
+    }
+
+    private static class TestPriorityNode extends TestNode implements SelfExecutingNode {
+        TestPriorityNode(@Nullable Throwable failure) {
+            super("test node", [], [], [], failure)
+        }
+
+        @Override
+        boolean isPriority() {
+            return true
         }
     }
 }
