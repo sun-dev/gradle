@@ -284,13 +284,13 @@ class FinalizerTaskIntegrationTest extends AbstractIntegrationSpec {
         expect:
         2.times {
             fails 'a'
-            failure.assertHasDescription """Circular dependency between the following tasks:
-:a
-\\--- :c
-     \\--- :b
-          \\--- :a (*)
-
-(*) - details omitted (listed previously)"""
+            failure.assertHasDescription """|Circular dependency between the following tasks:
+                                            |:a
+                                            |\\--- :c
+                                            |     \\--- :b
+                                            |          \\--- :a (*)
+                                            |
+                                            |(*) - details omitted (listed previously)""".stripMargin()
         }
     }
 
@@ -311,11 +311,11 @@ class FinalizerTaskIntegrationTest extends AbstractIntegrationSpec {
         expect:
         2.times {
             fails 'a'
-            failure.assertHasDescription """Circular dependency between the following tasks:
-:c
-\\--- :c (*)
-
-(*) - details omitted (listed previously)"""
+            failure.assertHasDescription """|Circular dependency between the following tasks:
+                                            |:c
+                                            |\\--- :c (*)
+                                            |
+                                            |(*) - details omitted (listed previously)""".stripMargin()
         }
     }
 
@@ -340,13 +340,13 @@ class FinalizerTaskIntegrationTest extends AbstractIntegrationSpec {
         expect:
         2.times {
             fails 'a'
-            failure.assertHasDescription """Circular dependency between the following tasks:
-:d
-\\--- :f
-     \\--- :e
-          \\--- :d (*)
-
-(*) - details omitted (listed previously)"""
+            failure.assertHasDescription """|Circular dependency between the following tasks:
+                                            |:d
+                                            |\\--- :f
+                                            |     \\--- :e
+                                            |          \\--- :d (*)
+                                            |
+                                            |(*) - details omitted (listed previously)""".stripMargin()
         }
     }
 
